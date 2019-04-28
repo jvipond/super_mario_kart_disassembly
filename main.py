@@ -442,7 +442,7 @@ class Instruction:
             output.write(f"{opcode_string} {operand_string}{comment_string:>{width}}")
 
 
-class InstructionOperand():
+class InstructionOperand:
     def __init__(self, value):
         self.value = value
 
