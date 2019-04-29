@@ -67,9 +67,9 @@ def get_operand_size(addr_mode, current_memory_mode, current_index_mode):
         return 4
 
     if addr_mode is AddressMode.ImmX:
-        return 2 if current_memory_mode is MemoryMode.EIGHT_BIT else 3
-    elif addr_mode is AddressMode.ImmM:
         return 2 if current_index_mode is MemoryMode.EIGHT_BIT else 3
+    elif addr_mode is AddressMode.ImmM:
+        return 2 if current_memory_mode is MemoryMode.EIGHT_BIT else 3
 
 
 def open_rom(file):
@@ -515,8 +515,8 @@ if __name__ == "__main__":
     current_index_mode = MemoryMode.EIGHT_BIT
     executed_instruction_info = open_executed_instruction_addresses("instruction_trace.txt")
     for instruction_info in executed_instruction_info:
-        current_memory_mode = instruction_info.memory_mode
-        current_index_mode = instruction_info.index_mode
+        current_memory_mode = MemoryMode.EIGHT_BIT if instruction_info.memory_mode is 1 else MemoryMode.SIXTEEN_BIT
+        current_index_mode = MemoryMode.SIXTEEN_BIT if instruction_info.index_mode is 1 else MemoryMode.SIXTEEN_BIT
         rom_addr, bank, bank_offset = convert_runtime_address_to_rom(instruction_info.runtime_addr)
 
         opcode_value = rom[rom_addr]
