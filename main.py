@@ -38,8 +38,8 @@ class AddressMode(Enum):
 
 
 class MemoryMode(Enum):
-    EIGHT_BIT = 0
-    SIXTEEN_BIT = 1
+    EIGHT_BIT = auto()
+    SIXTEEN_BIT = auto()
 
 
 ASSEMBLY_OUTPUT_LINE_WIDTH = 30
@@ -493,11 +493,10 @@ class Disassembly:
     def render(self):
         for (bank_index, bank) in enumerate(self.banks):
             bank_output = io.StringIO()
+            code_addr = (BANK_START + bank_index) << 16
             if bank_index == 0:
-                code_addr = (BANK_START + bank_index) << 16
                 bank_output.write(f"hirom\n\norg ${code_addr:0{6}X}\n\narch 65816\n\n")
             else:
-                code_addr = (BANK_START + bank_index) << 16
                 bank_output.write(f"org ${code_addr:0{6}X}\n\n")
             bank.render(bank_output)
             with open(f"bank{bank_index:0{2}d}.asm", 'w') as f:
