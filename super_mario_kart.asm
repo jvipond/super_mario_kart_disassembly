@@ -1,4 +1,5 @@
 ;@xkas
+incsrc hardware_registers.asm
 incsrc bank00.asm
 incsrc bank01.asm
 incsrc bank02.asm
