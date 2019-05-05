@@ -50,109 +50,144 @@ BANK_START = 0x40
 InstructionInfo = collections.namedtuple('InstructionInfo', 'memory_mode index_mode runtime_addr')
 
 hardware_registers = {
-"$2100" : "!SCREEN_DISPLAY_REGISTER",
-"$2101" : "!OAM_SIZE_AND_DATA_AREA_DESIGNATION",
-"$2102" : "!ADDRESS_FOR_ACCESSING_OAM_LOW",
-"$2103" : "!ADDRESS_FOR_ACCESSING_OAM_HIGH",
-"$2105" : "!BG_MODE_AND_TILE_SIZE_SETTING",
-"$2106" : "!MOSAIC_SIZE_AND_BG_ENABLE",
-"$2107" : "!BG_1_ADDRESS_AND_SIZE",
-"$2108" : "!BG_2_ADDRESS_AND_SIZE",
-"$2109" : "!BG_3_ADDRESS_AND_SIZE",
-"$210A" : "!BG_4_ADDRESS_AND_SIZE",
-"$210B" : "!BG_1_AND_2_TILE_DATA_DESIGNATION",
-"$210C" : "!BG_3_AND_4_TILE_DATA_DESIGNATION",
-"$210D" : "!BG_1_H_SCROLL_OFFSET",
-"$210E" : "!BG_1_V_SCROLL_OFFSET",
-"$210F" : "!BG_2_H_SCROLL_OFFSET",
-"$2110" : "!BG_2_V_SCROLL_OFFSET",
-"$2111" : "!BG_3_H_SCROLL_OFFSET",
-"$2112" : "!BG_3_V_SCROLL_OFFSET",
-"$2113" : "!BG_4_H_SCROLL_OFFSET",
-"$2114" : "!BG_4_V_SCROLL_OFFSET",
-"$2115" : "!VRAM_ADDRESS_INCREMENT_VALUE",
-"$2116" : "!ADDRESS_FOR_VRAM_READ_WRITE_LOW_BYTE",
-"$2117" : "!ADDRESS_FOR_VRAM_READ_WRITE_HIGH_BYTE",
-"$211A" : "!INITIAL_SETTING_FOR_MODE_7",
-"$211B" : "!MODE_7_MATRIX_PARAMETER_A",
-"$211C" : "!MODE_7_MATRIX_PARAMETER_B",
-"$211D" : "!MODE_7_MATRIX_PARAMETER_C",
-"$211E" : "!MODE_7_MATRIX_PARAMETER_D",
-"$211F" : "!MODE_7_CENTER_POSITION_X",
-"$2120" : "!MODE_7_CENTER_POSITION_Y",
-"$2121" : "!ADDRESS_FOR_CG_RAM_WRITE",
-"$2123" : "!BG_1_AND_2_WINDOW_MASK_SETTINGS",
-"$2124" : "!BG_3_AND_4_WINDOW_MASK_SETTINGS",
-"$2125" : "!OBJ_AND_COLOR_WINDOW_SETTINGS",
-"$2126" : "!WINDOW_1_LEFT_POSITION_DESIGNATION",
-"$2127" : "!WINDOW_1_RIGHT_POSITION_DESIGNATION",
-"$2128" : "!WINDOW_2_LEFT_POSTION_DESIGNATION",
-"$2129" : "!WINDOW_2_RIGHT_POSTION_DESIGNATION",
-"$212A" : "!BG_1_2_3_4_WINDOW_LOGIC_SETTINGS",
-"$212B" : "!COLOR_AND_OBJ_WINDOW_LOGIC_SETTINGS",
-"$212C" : "!BG_AND_OBJECT_ENABLE_MAIN_SCREEN",
-"$212D" : "!BG_AND_OBJECT_ENABLE_SUB_SCREEN",
-"$212E" : "!WINDOW_MASK_DESIGNATION_FOR_MAIN_SCREEN",
-"$212F" : "!WINDOW_MASK_DESIGNATION_FOR_SUB_SCREEN",
-"$2130" : "!INITIAL_SETTINGS_FOR_COLOR_ADDITION",
-"$2131" : "!ADD_SUBTRACT_SELECT_AND_ENABLE",
-"$2132" : "!FIXED_COLOR_DATA",
-"$2133" : "!SCREEN_INITIAL_SETTINGS",
-"$2140" : "!APU_I_O_PORT_0",
-"$2141" : "!APU_I_O_PORT_1",
-"$2142" : "!APU_I_O_PORT_2",
-"$2143" : "!APU_I_O_PORT_3",
-"$4016" : "!JOY_A",
-"$4017" : "!JOY_B",
-"$4200" : "!NMI_V_H_COUNT_AND_JOYPAD_ENABLE",
-"$4201" : "!PROGRAMMABLE_I_O_PORT_OUTPUT",
-"$4202" : "!MULTIPLICAND_A",
-"$4203" : "!MULTIPLIER_B",
-"$4204" : "!DIVIDEND_LOW_BYTE",
-"$4205" : "!DIVIDEND_HIGH_BYTE",
-"$4206" : "!DIVISOR_B",
-"$4207" : "!H_COUNT_TIMER",
-"$4208" : "!H_COUNT_TIMER_MSB",
-"$4209" : "!V_COUNT_TIMER",
-"$420A" : "!V_COUNT_TIMER_MSB",
-"$420B" : "!REGULAR_DMA_CHANNEL_ENABLE",
-"$420C" : "!H_DMA_CHANNEL_ENABLE",
-"$420D" : "!CYCLE_SPEED_DESIGNATION",
-"$4210" : "!NMI_ENABLE",
-"$4211" : "!IRQ_FLAG_BY_H_V_COUNT_TIMER",
-"$4212" : "!H_V_BLANK_FLAGS_AND_JOYPAD_STATUS",
-"$4218" : "!JOYPAD_1_DATA_LOW_BYTE",
-"$4219" : "!JOYPAD_1_DATA_HIGH_BYTE",
-"$421A" : "!JOYPAD_2_DATA_LOW_BYTE",
-"$421B" : "!JOYPAD_2_DATA_HIGH_BYTE",
-"$421E" : "!JOYPAD_4_DATA_LOW_BYTE",
-"$421F" : "!JOYPAD_4_DATA_HIGH_BYTE",
-"$4340" : "!DMA_4_PARAMS",
-"$4341" : "!DMA_4_B_ADDRESS",
-"$4342" : "!DMA_4_A_ADDRESS_LOW_BYTE",
-"$4343" : "!DMA_4_A_ADDRESS_HIGH_BYTE",
-"$4344" : "!DMA_4_A_ADDRESS_BANK",
-"$4345" : "!DMA_4_BYTES_COUNT_LOW_BYTE",
-"$4346" : "!DMA_4_BYTES_COUNT_HIGH_BYTE",
-"$4350" : "!DMA_5_PARAMS",
-"$4351" : "!DMA_5_B_ADDRESS",
-"$4352" : "!DMA_5_A_ADDRESS_LOW_BYTE ",
-"$4354" : "!DMA_5_A_ADDRESS_BANK",
-"$4355" : "!DMA_5_BYTES_COUNT_LOW_BYTE",
-"$4360" : "!DMA_6_PARAMS",
-"$4361" : "!DMA_6_B_ADDRESS",
-"$4362" : "!DMA_6_A_ADDRESS_LOW_BYTE",
-"$4363" : "!DMA_6_A_ADDRESS_HIGH_BYTE",
-"$4364" : "!DMA_6_A_ADDRESS_BANK",
-"$4365" : "!DMA_6_BYTES_COUNT_LOW_BYTE",
-"$4366" : "!DMA_6_BYTES_COUNT_HIGH_BYTE",
-"$4353" : "!DMA_5_A_ADDRESS_HIGH_BYTE",
-"$4356" : "!DMA_5_BYTES_COUNT_HIGH_BYTE",
-"$4216" : "!PRODUCT_REMAINDER_RESULT_LOW_BYTE",
-"$2118" : "!DATA_FOR_VRAM_WRITE_LOW_BYTE",
-"$4214" : "!QUOTIENT_OF_DIVIDE_RESULT_LOW_BYTE",
-"$006000" : "!DSP1_DATA_REGISTER",
-"$007000" : "!DSP1_STATUS_REGISTER"
+    "$2100": "!SCREEN_DISPLAY_REGISTER",
+    "$2101": "!OAM_SIZE_AND_DATA_AREA_DESIGNATION",
+    "$2102": "!ADDRESS_FOR_ACCESSING_OAM_LOW",
+    "$2103": "!ADDRESS_FOR_ACCESSING_OAM_HIGH",
+    "$2105": "!BG_MODE_AND_TILE_SIZE_SETTING",
+    "$2106": "!MOSAIC_SIZE_AND_BG_ENABLE",
+    "$2107": "!BG_1_ADDRESS_AND_SIZE",
+    "$2108": "!BG_2_ADDRESS_AND_SIZE",
+    "$2109": "!BG_3_ADDRESS_AND_SIZE",
+    "$210A": "!BG_4_ADDRESS_AND_SIZE",
+    "$210B": "!BG_1_AND_2_TILE_DATA_DESIGNATION",
+    "$210C": "!BG_3_AND_4_TILE_DATA_DESIGNATION",
+    "$210D": "!BG_1_H_SCROLL_OFFSET",
+    "$210E": "!BG_1_V_SCROLL_OFFSET",
+    "$210F": "!BG_2_H_SCROLL_OFFSET",
+    "$2110": "!BG_2_V_SCROLL_OFFSET",
+    "$2111": "!BG_3_H_SCROLL_OFFSET",
+    "$2112": "!BG_3_V_SCROLL_OFFSET",
+    "$2113": "!BG_4_H_SCROLL_OFFSET",
+    "$2114": "!BG_4_V_SCROLL_OFFSET",
+    "$2115": "!VRAM_ADDRESS_INCREMENT_VALUE",
+    "$2116": "!ADDRESS_FOR_VRAM_READ_WRITE_LOW_BYTE",
+    "$2117": "!ADDRESS_FOR_VRAM_READ_WRITE_HIGH_BYTE",
+    "$211A": "!INITIAL_SETTING_FOR_MODE_7",
+    "$211B": "!MODE_7_MATRIX_PARAMETER_A",
+    "$211C": "!MODE_7_MATRIX_PARAMETER_B",
+    "$211D": "!MODE_7_MATRIX_PARAMETER_C",
+    "$211E": "!MODE_7_MATRIX_PARAMETER_D",
+    "$211F": "!MODE_7_CENTER_POSITION_X",
+    "$2120": "!MODE_7_CENTER_POSITION_Y",
+    "$2121": "!ADDRESS_FOR_CG_RAM_WRITE",
+    "$2123": "!BG_1_AND_2_WINDOW_MASK_SETTINGS",
+    "$2124": "!BG_3_AND_4_WINDOW_MASK_SETTINGS",
+    "$2125": "!OBJ_AND_COLOR_WINDOW_SETTINGS",
+    "$2126": "!WINDOW_1_LEFT_POSITION_DESIGNATION",
+    "$2127": "!WINDOW_1_RIGHT_POSITION_DESIGNATION",
+    "$2128": "!WINDOW_2_LEFT_POSTION_DESIGNATION",
+    "$2129": "!WINDOW_2_RIGHT_POSTION_DESIGNATION",
+    "$212A": "!BG_1_2_3_4_WINDOW_LOGIC_SETTINGS",
+    "$212B": "!COLOR_AND_OBJ_WINDOW_LOGIC_SETTINGS",
+    "$212C": "!BG_AND_OBJECT_ENABLE_MAIN_SCREEN",
+    "$212D": "!BG_AND_OBJECT_ENABLE_SUB_SCREEN",
+    "$212E": "!WINDOW_MASK_DESIGNATION_FOR_MAIN_SCREEN",
+    "$212F": "!WINDOW_MASK_DESIGNATION_FOR_SUB_SCREEN",
+    "$2130": "!INITIAL_SETTINGS_FOR_COLOR_ADDITION",
+    "$2131": "!ADD_SUBTRACT_SELECT_AND_ENABLE",
+    "$2132": "!FIXED_COLOR_DATA",
+    "$2133": "!SCREEN_INITIAL_SETTINGS",
+    "$2140": "!APU_I_O_PORT_0",
+    "$2141": "!APU_I_O_PORT_1",
+    "$2142": "!APU_I_O_PORT_2",
+    "$2143": "!APU_I_O_PORT_3",
+    "$4016": "!JOY_A",
+    "$4017": "!JOY_B",
+    "$4200": "!NMI_V_H_COUNT_AND_JOYPAD_ENABLE",
+    "$4201": "!PROGRAMMABLE_I_O_PORT_OUTPUT",
+    "$4202": "!MULTIPLICAND_A",
+    "$4203": "!MULTIPLIER_B",
+    "$4204": "!DIVIDEND_LOW_BYTE",
+    "$4205": "!DIVIDEND_HIGH_BYTE",
+    "$4206": "!DIVISOR_B",
+    "$4207": "!H_COUNT_TIMER",
+    "$4208": "!H_COUNT_TIMER_MSB",
+    "$4209": "!V_COUNT_TIMER",
+    "$420A": "!V_COUNT_TIMER_MSB",
+    "$420B": "!REGULAR_DMA_CHANNEL_ENABLE",
+    "$420C": "!H_DMA_CHANNEL_ENABLE",
+    "$420D": "!CYCLE_SPEED_DESIGNATION",
+    "$4210": "!NMI_ENABLE",
+    "$4211": "!IRQ_FLAG_BY_H_V_COUNT_TIMER",
+    "$4212": "!H_V_BLANK_FLAGS_AND_JOYPAD_STATUS",
+    "$4218": "!JOYPAD_1_DATA_LOW_BYTE",
+    "$4219": "!JOYPAD_1_DATA_HIGH_BYTE",
+    "$421A": "!JOYPAD_2_DATA_LOW_BYTE",
+    "$421B": "!JOYPAD_2_DATA_HIGH_BYTE",
+    "$421E": "!JOYPAD_4_DATA_LOW_BYTE",
+    "$421F": "!JOYPAD_4_DATA_HIGH_BYTE",
+    "$4300": "!DMA_0_PARAMS",
+    "$4301": "!DMA_0_B_ADDRESS",
+    "$4302": "!DMA_0_A_ADDRESS_LOW_BYTE",
+    "$4303": "!DMA_0_A_ADDRESS_HIGH_BYTE",
+    "$4304": "!DMA_0_A_ADDRESS_BANK",
+    "$4305": "!DMA_0_BYTES_COUNT_LOW_BYTE",
+    "$4306": "!DMA_0_BYTES_COUNT_HIGH_BYTE",
+    "$4310": "!DMA_1_PARAMS",
+    "$4311": "!DMA_1_B_ADDRESS",
+    "$4312": "!DMA_1_A_ADDRESS_LOW_BYTE",
+    "$4313": "!DMA_1_A_ADDRESS_HIGH_BYTE",
+    "$4314": "!DMA_1_A_ADDRESS_BANK",
+    "$4315": "!DMA_1_BYTES_COUNT_LOW_BYTE",
+    "$4316": "!DMA_1_BYTES_COUNT_HIGH_BYTE",
+    "$4320": "!DMA_2_PARAMS",
+    "$4321": "!DMA_2_B_ADDRESS",
+    "$4322": "!DMA_2_A_ADDRESS_LOW_BYTE",
+    "$4323": "!DMA_2_A_ADDRESS_HIGH_BYTE",
+    "$4324": "!DMA_2_A_ADDRESS_BANK",
+    "$4325": "!DMA_2_BYTES_COUNT_LOW_BYTE",
+    "$4326": "!DMA_2_BYTES_COUNT_HIGH_BYTE",
+    "$4330": "!DMA_3_PARAMS",
+    "$4331": "!DMA_3_B_ADDRESS",
+    "$4332": "!DMA_3_A_ADDRESS_LOW_BYTE",
+    "$4333": "!DMA_3_A_ADDRESS_HIGH_BYTE",
+    "$4334": "!DMA_3_A_ADDRESS_BANK",
+    "$4335": "!DMA_3_BYTES_COUNT_LOW_BYTE",
+    "$4336": "!DMA_3_BYTES_COUNT_HIGH_BYTE",
+    "$4340": "!DMA_4_PARAMS",
+    "$4341": "!DMA_4_B_ADDRESS",
+    "$4342": "!DMA_4_A_ADDRESS_LOW_BYTE",
+    "$4343": "!DMA_4_A_ADDRESS_HIGH_BYTE",
+    "$4344": "!DMA_4_A_ADDRESS_BANK",
+    "$4345": "!DMA_4_BYTES_COUNT_LOW_BYTE",
+    "$4346": "!DMA_4_BYTES_COUNT_HIGH_BYTE",
+    "$4350": "!DMA_5_PARAMS",
+    "$4351": "!DMA_5_B_ADDRESS",
+    "$4352": "!DMA_5_A_ADDRESS_LOW_BYTE ",
+    "$4353": "!DMA_5_A_ADDRESS_HIGH_BYTE",
+    "$4354": "!DMA_5_A_ADDRESS_BANK",
+    "$4355": "!DMA_5_BYTES_COUNT_LOW_BYTE",
+    "$4356": "!DMA_5_BYTES_COUNT_HIGH_BYTE",
+    "$4360": "!DMA_6_PARAMS",
+    "$4361": "!DMA_6_B_ADDRESS",
+    "$4362": "!DMA_6_A_ADDRESS_LOW_BYTE",
+    "$4363": "!DMA_6_A_ADDRESS_HIGH_BYTE",
+    "$4364": "!DMA_6_A_ADDRESS_BANK",
+    "$4365": "!DMA_6_BYTES_COUNT_LOW_BYTE",
+    "$4366": "!DMA_6_BYTES_COUNT_HIGH_BYTE",
+    "$4370": "!DMA_7_PARAMS",
+    "$4371": "!DMA_7_B_ADDRESS",
+    "$4372": "!DMA_7_A_ADDRESS_LOW_BYTE",
+    "$4373": "!DMA_7_A_ADDRESS_HIGH_BYTE",
+    "$4374": "!DMA_7_A_ADDRESS_BANK",
+    "$4375": "!DMA_7_BYTES_COUNT_LOW_BYTE",
+    "$4376": "!DMA_7_BYTES_COUNT_HIGH_BYTE",
+    "$4216": "!PRODUCT_REMAINDER_RESULT_LOW_BYTE",
+    "$2118": "!DATA_FOR_VRAM_WRITE_LOW_BYTE",
+    "$4214": "!QUOTIENT_OF_DIVIDE_RESULT_LOW_BYTE",
+    "$006000": "!DSP1_DATA_REGISTER",
+    "$007000": "!DSP1_STATUS_REGISTER"
 }
 
 
@@ -534,6 +569,8 @@ class Instruction:
         self.operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
         self.addr_mode = addr_mode
         self.operand = get_operand(addr_mode, rom_data_from_opcode_addr, self.operand_size)
+        self.memory_mode = current_memory_mode
+        self.index_mode = current_index_mode
 
     def render(self, output, bank_num, bank_offset):
         comment_addr = bank_num | bank_offset
@@ -583,13 +620,13 @@ class Disassembly:
         # if the address we were going to write the instruction to is part of a previous InstructionOperand
         # then we bail out as we want to leave this bit as data to be able to reassemble
         if isinstance(self.banks[bank].payload[bank_offset], InstructionOperand):
-            return
+            return False
 
         addr_mode = get_addr_mode_from_opcode_value(opcode)
         operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
         for i in range(operand_size):
             if isinstance(self.banks[bank].payload[bank_offset + i], Instruction):
-                return
+                return False
 
         self.banks[bank].payload[bank_offset] = Instruction(opcode=opcode,
                                                             current_memory_mode=current_memory_mode,
@@ -597,6 +634,53 @@ class Disassembly:
                                                             rom_data_from_opcode_addr=rom_data_from_opcode_addr)
         for i in range(1, operand_size):
             self.banks[bank].payload[bank_offset + i] = InstructionOperand(rom_data_from_opcode_addr[i])
+
+        return True
+
+    def disassemble_branches_not_taken(self, rom):
+        for index in range(len(self.banks)):
+            for offset in range(len(self.banks[index].payload)):
+                if isinstance(self.banks[index].payload[offset], Instruction):
+                    instruction = self.banks[index].payload[offset]
+                    current_memory_mode = instruction.memory_mode
+                    current_index_mode = instruction.index_mode
+                    if opcodes[instruction.opcode] in ["BNE", "BPL", "BMI", "BVC", "BCS", "BEQ","BCC", "BVS"]:
+                        size = instruction.operand_size
+                        next_instruction_offset = offset + size
+                        while isinstance(self.banks[index].payload[next_instruction_offset], Data):
+                            rom_addr = (index * BANK_SIZE) + next_instruction_offset
+                            disassembled_instruction = self.mark_as_instruction(bank=index,
+                                                                                bank_offset=next_instruction_offset,
+                                                                                opcode=rom[rom_addr],
+                                                                                current_memory_mode=current_memory_mode,
+                                                                                current_index_mode=current_index_mode,
+                                                                                rom_data_from_opcode_addr=rom[
+                                                                                                          rom_addr:])
+
+                            if disassembled_instruction:
+                                # check to see if we did a REP or SEP which could have changed the memory or index mode.
+                                instruction = self.banks[index].payload[next_instruction_offset]
+                                mnemonic = opcodes[instruction.opcode]
+                                if mnemonic is "REP":
+                                    instruction_operand = self.banks[index].payload[next_instruction_offset + 1]
+                                    assert isinstance(instruction_operand, InstructionOperand)
+                                    current_memory_mode = MemoryMode.SIXTEEN_BIT if (instruction_operand.value & 0b00100000) else current_memory_mode
+                                    current_index_mode = MemoryMode.SIXTEEN_BIT if (instruction_operand.value & 0b00010000) else current_index_mode
+                                    instruction.memory_mode = current_memory_mode
+                                    instruction.index_mode = current_index_mode
+                                elif mnemonic is "SEP":
+                                    instruction_operand = self.banks[index].payload[next_instruction_offset + 1]
+                                    assert isinstance(instruction_operand, InstructionOperand)
+                                    current_memory_mode = MemoryMode.EIGHT_BIT if (instruction_operand.value & 0b00100000) else current_memory_mode
+                                    current_index_mode = MemoryMode.EIGHT_BIT if (instruction_operand.value & 0b00010000) else current_index_mode
+                                    instruction.memory_mode = current_memory_mode
+                                    instruction.index_mode = current_index_mode
+
+                                assert isinstance(self.banks[index].payload[next_instruction_offset], Instruction)
+                                assert opcodes[self.banks[index].payload[next_instruction_offset].opcode] is not "XCE"
+                                next_instruction_offset += self.banks[index].payload[next_instruction_offset].operand_size
+                            else:
+                                break
 
     def render(self):
         for (bank_index, bank) in enumerate(self.banks):
@@ -631,4 +715,5 @@ if __name__ == "__main__":
                                         current_memory_mode=current_memory_mode, current_index_mode=current_index_mode,
                                         rom_data_from_opcode_addr=rom[rom_addr:])
 
+    disassembly.disassemble_branches_not_taken(rom)
     disassembly.render()
