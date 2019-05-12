@@ -1,6 +1,7 @@
 from enum import Enum, auto
 import collections
 import io
+import json
 
 
 class AddressMode(Enum):
@@ -220,8 +221,8 @@ def open_rom(file):
 
 
 def open_executed_instruction_addresses(file):
+    data = []
     with open(file, 'r') as f:
-        data = []
         for line in f:
             memory_mode_and_addr = line.split(" ")
             assert len(memory_mode_and_addr) == 3
@@ -230,7 +231,7 @@ def open_executed_instruction_addresses(file):
             runtime_addr = int(memory_mode_and_addr[2])
 
             data.append(InstructionInfo(memory_mode=memory_mode, index_mode=index_mode, runtime_addr=runtime_addr))
-        return data
+    return data
 
 
 def get_bank_and_offset(addr):
@@ -265,6 +266,14 @@ def convert_runtime_address_to_rom(addr):
 
     return adjusted_address, bank, bank_offset
 
+
+def open_label_addresses(file):
+    labels = set()
+    with open(file, 'r') as f:
+        for line in f:
+            offset, _, _ = convert_runtime_address_to_rom(int(line))
+            labels.add(offset)
+    return labels
 
 def get_operand(addr_mode, rom_data, operand_size):
     if operand_size == 2:
@@ -561,6 +570,10 @@ class Data:
         width = ASSEMBLY_OUTPUT_LINE_WIDTH - len(assembly_string)
         output.write(f"{assembly_string}{comment_string:>{width}}")
 
+    def build_ast(self, ast, offset):
+        pass
+        #ast.append({"Data": {"offset": offset, "value": self.value}})
+
 
 class Instruction:
     def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_opcode_addr):
@@ -586,6 +599,12 @@ class Instruction:
             width = ASSEMBLY_OUTPUT_LINE_WIDTH - (len(opcode_string) + len(operand_string) + 1)
             output.write(f"{opcode_string} {operand_string}{comment_string:>{width}}")
 
+    def build_ast(self, ast, offset):
+        if self.operand is not None:
+            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand}})
+        else:
+            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode}})
+
 
 class InstructionOperand:
     def __init__(self, value):
@@ -594,21 +613,37 @@ class InstructionOperand:
     def render(self, output, bank_num, bank_offset):
         pass
 
+    def build_ast(self, ast, offset):
+        pass
+
 
 class Bank:
     def __init__(self, bank_index):
         self.payload = [None for _ in range(BANK_SIZE)]
+        self.bank_index = bank_index
         self.bank_num = (BANK_START + bank_index) << 16
 
-    def render(self, output):
+    def render(self, output, labels_set):
         for (bank_offset, payload) in enumerate(self.payload):
             if payload is not None:
+                offset = (self.bank_index * BANK_SIZE) + bank_offset
+                if offset in labels_set:
+                    output.write("\n")
+                    output.write(f"CODE_{self.bank_num | bank_offset:0{6}X}:\n")
                 payload.render(output, self.bank_num, bank_offset)
 
+    def build_ast(self, ast, labels_set):
+        for (bank_offset, payload) in enumerate(self.payload):
+            if payload is not None:
+                offset = (self.bank_index * BANK_SIZE) + bank_offset
+                if offset in labels_set:
+                    ast.append({"Label": {"offset": offset, "name": f"CODE_{self.bank_num | bank_offset:0{6}X}"}})
+                payload.build_ast(ast, offset)
 
 class Disassembly:
-    def __init__(self):
+    def __init__(self, labels_set):
         self.banks = [Bank(i) for i in range(NUM_BANKS)]
+        self.labels_set = labels_set
 
     def mark_as_data(self, bank, bank_offset, data):
         self.banks[bank].payload[bank_offset] = Data(data)
@@ -690,14 +725,26 @@ class Disassembly:
                 bank_output.write(f"hirom\n\norg ${code_addr:0{6}X}\n\narch 65816\n\n")
             else:
                 bank_output.write(f"org ${code_addr:0{6}X}\n\n")
-            bank.render(bank_output)
+            bank.render(bank_output, self.labels_set)
             with open(f"bank{bank_index:0{2}d}.asm", 'w') as f:
                 f.write(bank_output.getvalue())
 
+    def build_ast(self, ast):
+        for bank in self.banks:
+            bank.build_ast(ast, self.labels_set)
+
+    def write_ast(self, output_filename):
+        with open(output_filename, 'w') as f:
+            ast = []
+            self.build_ast(ast)
+            ast_dict = {"ast": ast}
+            json.dump(ast_dict, f)
+
 
 if __name__ == "__main__":
+    labels_set = open_label_addresses("labels.txt")
     rom = open_rom("Super Mario Kart (USA).sfc")
-    disassembly = Disassembly()
+    disassembly = Disassembly(labels_set)
     for (addr, d) in enumerate(rom):
         bank, bank_offset = get_bank_and_offset(addr)
         disassembly.mark_as_data(bank=bank, bank_offset=bank_offset, data=d)
@@ -717,3 +764,5 @@ if __name__ == "__main__":
 
     disassembly.disassemble_branches_not_taken(rom)
     disassembly.render()
+
+    disassembly.write_ast("super_mario_kart_ast.json")
