@@ -47,6 +47,7 @@ ASSEMBLY_OUTPUT_LINE_WIDTH = 60
 NUM_BANKS = 8
 BANK_SIZE = 0x10000
 BANK_START = 0x40
+ROM_RESET_ADDR = 0xFFFC
 
 InstructionInfo = collections.namedtuple('InstructionInfo', 'memory_mode index_mode runtime_addr')
 
@@ -194,24 +195,24 @@ hardware_registers = {
 
 def get_operand_size(addr_mode, current_memory_mode, current_index_mode):
     if addr_mode in [AddressMode.Acc, AddressMode.Imp, AddressMode.Stk]:
-        return 1
+        return 0
     elif addr_mode in [AddressMode.DirIdxIndX, AddressMode.DirIdxX, AddressMode.DirIdxY, AddressMode.DirIndIdxY,
                        AddressMode.DirIndLngIdxY, AddressMode.DirIndLng, AddressMode.DirInd, AddressMode.Dir,
                        AddressMode.Sig8, AddressMode.Imm8, AddressMode.Rel, AddressMode.StkRel,
                        AddressMode.StkRelIndIdxY]:
-        return 2
+        return 1
     elif addr_mode in [AddressMode.Abs, AddressMode.AbsIdxXInd, AddressMode.AbsIdxX, AddressMode.AbsIdxY,
                        AddressMode.AbsInd,
                        AddressMode.AbsIndLng, AddressMode.AbsJmp, AddressMode.BlkMov, AddressMode.Imm16,
                        AddressMode.RelLng]:
-        return 3
+        return 2
     elif addr_mode in [AddressMode.AbsLngJmp, AddressMode.AbsLngIdxX, AddressMode.AbsLng]:
-        return 4
+        return 3
 
     if addr_mode is AddressMode.ImmX:
-        return 2 if current_index_mode is MemoryMode.EIGHT_BIT else 3
+        return 1 if current_index_mode is MemoryMode.EIGHT_BIT else 2
     elif addr_mode is AddressMode.ImmM:
-        return 2 if current_memory_mode is MemoryMode.EIGHT_BIT else 3
+        return 1 if current_memory_mode is MemoryMode.EIGHT_BIT else 2
 
 
 def open_rom(file):
@@ -276,12 +277,12 @@ def open_label_addresses(file):
     return labels
 
 def get_operand(rom_data, operand_size):
-    if operand_size == 2:
-        return rom_data[1]
+    if operand_size == 1:
+        return rom_data[0]
+    elif operand_size == 2:
+        return rom_data[1] << 8 | rom_data[0]
     elif operand_size == 3:
-        return rom_data[2] << 8 | rom_data[1]
-    elif operand_size == 4:
-        return rom_data[3] << 16 | rom_data[2] << 8 | rom_data[1]
+        return rom_data[2] << 16 | rom_data[1] << 8 | rom_data[0]
 
     return None
 
@@ -299,14 +300,14 @@ def handle_Imm16(v, size=0):
 
 
 def handle_ImmX(v, size):
-    if size == 2:
+    if size == 1:
         return (f"#${v:0{2}X}")
     else:
         return f"#${v:0{4}X}"
 
 
 def handle_ImmM(v, size):
-    if size == 2:
+    if size == 1:
         return (f"#${v:0{2}X}")
     else:
         return f"#${v:0{4}X}"
@@ -576,12 +577,12 @@ class Data:
 
 
 class Instruction:
-    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_opcode_addr):
+    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_operand_addr):
         addr_mode = get_addr_mode_from_opcode_value(opcode)
         self.opcode = opcode
         self.operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
         self.addr_mode = addr_mode
-        self.operand = get_operand(rom_data_from_opcode_addr, self.operand_size)
+        self.operand = get_operand(rom_data_from_operand_addr, self.operand_size)
         self.memory_mode = current_memory_mode
         self.index_mode = current_index_mode
 
@@ -601,7 +602,7 @@ class Instruction:
 
     def build_ast(self, ast, offset):
         if self.operand is not None:
-            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
         else:
             ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
 
@@ -641,15 +642,18 @@ class Bank:
                 payload.build_ast(ast, offset)
 
 class Disassembly:
-    def __init__(self, labels_set):
+    def __init__(self, labels_set, rom):
         self.banks = [Bank(i) for i in range(NUM_BANKS)]
         self.labels_set = labels_set
+        addr, bank, bank_offset = convert_runtime_address_to_rom(get_operand(rom[ROM_RESET_ADDR:], 2))
+        self.labels_set.add((bank * BANK_SIZE) + bank_offset)
+        self.rom_reset_label_name = f"CODE_{((BANK_START + bank) << 16) | bank_offset:0{6}X}"
 
     def mark_as_data(self, bank, bank_offset, data):
         self.banks[bank].payload[bank_offset] = Data(data)
 
     def mark_as_instruction(self, bank, bank_offset, opcode, current_memory_mode, current_index_mode,
-                            rom_data_from_opcode_addr):
+                            rom_data_from_operand_addr):
         # detect the case where the original assembly employed space saving technique utilising part of the previous
         # instruction operand as the opcode.
         # if the address we were going to write the instruction to is part of a previous InstructionOperand
@@ -659,16 +663,16 @@ class Disassembly:
 
         addr_mode = get_addr_mode_from_opcode_value(opcode)
         operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
-        for i in range(operand_size):
+        for i in range(operand_size+1):
             if isinstance(self.banks[bank].payload[bank_offset + i], Instruction):
                 return False
 
         self.banks[bank].payload[bank_offset] = Instruction(opcode=opcode,
                                                             current_memory_mode=current_memory_mode,
                                                             current_index_mode=current_index_mode,
-                                                            rom_data_from_opcode_addr=rom_data_from_opcode_addr)
-        for i in range(1, operand_size):
-            self.banks[bank].payload[bank_offset + i] = InstructionOperand(rom_data_from_opcode_addr[i])
+                                                            rom_data_from_operand_addr=rom_data_from_operand_addr)
+        for i in range(1, operand_size+1):
+            self.banks[bank].payload[bank_offset + i] = InstructionOperand(rom_data_from_operand_addr[i])
 
         return True
 
@@ -680,7 +684,7 @@ class Disassembly:
                     current_memory_mode = instruction.memory_mode
                     current_index_mode = instruction.index_mode
                     if opcodes[instruction.opcode] in ["BNE", "BPL", "BMI", "BVC", "BCS", "BEQ","BCC", "BVS"]:
-                        size = instruction.operand_size
+                        size = instruction.operand_size + 1
                         next_instruction_offset = offset + size
                         while isinstance(self.banks[index].payload[next_instruction_offset], Data):
                             rom_addr = (index * BANK_SIZE) + next_instruction_offset
@@ -689,8 +693,7 @@ class Disassembly:
                                                                                 opcode=rom[rom_addr],
                                                                                 current_memory_mode=current_memory_mode,
                                                                                 current_index_mode=current_index_mode,
-                                                                                rom_data_from_opcode_addr=rom[
-                                                                                                          rom_addr:])
+                                                                                rom_data_from_operand_addr=rom[rom_addr + 1:])
 
                             if disassembled_instruction:
                                 # check to see if we did a REP or SEP which could have changed the memory or index mode.
@@ -713,7 +716,7 @@ class Disassembly:
 
                                 assert isinstance(self.banks[index].payload[next_instruction_offset], Instruction)
                                 assert opcodes[self.banks[index].payload[next_instruction_offset].opcode] is not "XCE"
-                                next_instruction_offset += self.banks[index].payload[next_instruction_offset].operand_size
+                                next_instruction_offset += self.banks[index].payload[next_instruction_offset].operand_size + 1
                             else:
                                 break
 
@@ -738,13 +741,14 @@ class Disassembly:
             ast = []
             self.build_ast(ast)
             ast_dict = {"ast": ast}
+            ast_dict["rom_reset_label_name"] = self.rom_reset_label_name
             json.dump(ast_dict, f)
 
 
 if __name__ == "__main__":
     labels_set = open_label_addresses("labels.txt")
     rom = open_rom("Super Mario Kart (USA).sfc")
-    disassembly = Disassembly(labels_set)
+    disassembly = Disassembly(labels_set, rom)
     for (addr, d) in enumerate(rom):
         bank, bank_offset = get_bank_and_offset(addr)
         disassembly.mark_as_data(bank=bank, bank_offset=bank_offset, data=d)
@@ -760,7 +764,7 @@ if __name__ == "__main__":
         opcode_value = rom[rom_addr]
         disassembly.mark_as_instruction(bank=bank, bank_offset=bank_offset, opcode=opcode_value,
                                         current_memory_mode=current_memory_mode, current_index_mode=current_index_mode,
-                                        rom_data_from_opcode_addr=rom[rom_addr:])
+                                        rom_data_from_operand_addr=rom[rom_addr+1:])
 
     disassembly.disassemble_branches_not_taken(rom)
     disassembly.render()
