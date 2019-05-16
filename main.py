@@ -275,7 +275,7 @@ def open_label_addresses(file):
             labels.add(offset)
     return labels
 
-def get_operand(addr_mode, rom_data, operand_size):
+def get_operand(rom_data, operand_size):
     if operand_size == 2:
         return rom_data[1]
     elif operand_size == 3:
@@ -581,7 +581,7 @@ class Instruction:
         self.opcode = opcode
         self.operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
         self.addr_mode = addr_mode
-        self.operand = get_operand(addr_mode, rom_data_from_opcode_addr, self.operand_size)
+        self.operand = get_operand(rom_data_from_opcode_addr, self.operand_size)
         self.memory_mode = current_memory_mode
         self.index_mode = current_index_mode
 
@@ -601,9 +601,9 @@ class Instruction:
 
     def build_ast(self, ast, offset):
         if self.operand is not None:
-            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand}})
+            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
         else:
-            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode}})
+            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
 
 
 class InstructionOperand:
