@@ -577,7 +577,7 @@ class Data:
 
 
 class Instruction:
-    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_operand_addr):
+    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_operand_addr, bank_index):
         addr_mode = get_addr_mode_from_opcode_value(opcode)
         self.opcode = opcode
         self.operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
@@ -585,6 +585,13 @@ class Instruction:
         self.operand = get_operand(rom_data_from_operand_addr, self.operand_size)
         self.memory_mode = current_memory_mode
         self.index_mode = current_index_mode
+
+        self.jump_label_name = None
+        if opcode is 0x4C:
+            self.jump_label_name = f"CODE_{(BANK_START + bank_index) << 16 | self.operand:0{6}X}"
+        elif opcode in [0x22, 0x5C]:
+            addr, bank, bank_offset = convert_runtime_address_to_rom(self.operand)
+            self.jump_label_name = f"CODE_{(BANK_START + bank) << 16 | bank_offset:0{6}X}"
 
     def render(self, output, bank_num, bank_offset):
         comment_addr = bank_num | bank_offset
@@ -602,7 +609,10 @@ class Instruction:
 
     def build_ast(self, ast, offset):
         if self.operand is not None:
-            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+            if self.jump_label_name is not None:
+                ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "jump_label_name": self.jump_label_name, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+            else:
+                ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
         else:
             ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
 
@@ -670,7 +680,8 @@ class Disassembly:
         self.banks[bank].payload[bank_offset] = Instruction(opcode=opcode,
                                                             current_memory_mode=current_memory_mode,
                                                             current_index_mode=current_index_mode,
-                                                            rom_data_from_operand_addr=rom_data_from_operand_addr)
+                                                            rom_data_from_operand_addr=rom_data_from_operand_addr,
+                                                            bank_index=bank)
         for i in range(1, operand_size+1):
             self.banks[bank].payload[bank_offset + i] = InstructionOperand(rom_data_from_operand_addr[i])
 
