@@ -594,10 +594,7 @@ class Instruction:
             self.jump_label_name = f"CODE_{(BANK_START + jump_bank) << 16 | jump_offset:0{6}X}"
         elif opcode in [0x90, 0xB0, 0xF0, 0x30, 0xD0, 0x10, 0x80, 0x50, 0x70]:
             jump_amount_signed = self.operand - 256 if self.operand > 127 else self.operand
-            print( "operand = ", self.operand)
-            print( "jump_amount_signed = ", jump_amount_signed )
             jump_offset = (bank_offset + 2 + jump_amount_signed) & 0xFFFF
-            print("jump_offset = ", jump_offset)
             self.jump_label_name = f"CODE_{(BANK_START + bank_index) << 16 | jump_offset:0{6}X}"
 
 
