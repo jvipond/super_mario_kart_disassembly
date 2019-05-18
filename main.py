@@ -577,7 +577,7 @@ class Data:
 
 
 class Instruction:
-    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_operand_addr, bank_index):
+    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_operand_addr, bank_index, bank_offset):
         addr_mode = get_addr_mode_from_opcode_value(opcode)
         self.opcode = opcode
         self.operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
@@ -590,8 +590,16 @@ class Instruction:
         if opcode is 0x4C:
             self.jump_label_name = f"CODE_{(BANK_START + bank_index) << 16 | self.operand:0{6}X}"
         elif opcode in [0x22, 0x5C]:
-            addr, bank, bank_offset = convert_runtime_address_to_rom(self.operand)
-            self.jump_label_name = f"CODE_{(BANK_START + bank) << 16 | bank_offset:0{6}X}"
+            addr, jump_bank, jump_offset = convert_runtime_address_to_rom(self.operand)
+            self.jump_label_name = f"CODE_{(BANK_START + jump_bank) << 16 | jump_offset:0{6}X}"
+        elif opcode in [0x90, 0xB0, 0xF0, 0x30, 0xD0, 0x10, 0x80, 0x50, 0x70]:
+            jump_amount_signed = self.operand - 256 if self.operand > 127 else self.operand
+            print( "operand = ", self.operand)
+            print( "jump_amount_signed = ", jump_amount_signed )
+            jump_offset = (bank_offset + 2 + jump_amount_signed) & 0xFFFF
+            print("jump_offset = ", jump_offset)
+            self.jump_label_name = f"CODE_{(BANK_START + bank_index) << 16 | jump_offset:0{6}X}"
+
 
     def render(self, output, bank_num, bank_offset):
         comment_addr = bank_num | bank_offset
@@ -681,7 +689,8 @@ class Disassembly:
                                                             current_memory_mode=current_memory_mode,
                                                             current_index_mode=current_index_mode,
                                                             rom_data_from_operand_addr=rom_data_from_operand_addr,
-                                                            bank_index=bank)
+                                                            bank_index=bank,
+                                                            bank_offset=bank_offset)
         for i in range(1, operand_size+1):
             self.banks[bank].payload[bank_offset + i] = InstructionOperand(rom_data_from_operand_addr[i])
 
