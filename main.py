@@ -48,6 +48,8 @@ NUM_BANKS = 8
 BANK_SIZE = 0x10000
 BANK_START = 0x40
 ROM_RESET_ADDR = 0xFFFC
+ROM_NMI_ADDR = 0xFFEA
+ROM_IRQ_ADDR = 0xFFEE
 
 InstructionInfo = collections.namedtuple('InstructionInfo', 'memory_mode index_mode runtime_addr')
 
@@ -669,9 +671,17 @@ class Disassembly:
     def __init__(self, labels_set, rom):
         self.banks = [Bank(i) for i in range(NUM_BANKS)]
         self.labels_set = labels_set
-        addr, bank, bank_offset = convert_runtime_address_to_rom(get_operand(rom[ROM_RESET_ADDR:], 2))
-        self.labels_set.add((bank * BANK_SIZE) + bank_offset)
-        self.rom_reset_label_name = f"CODE_{((BANK_START + bank) << 16) | bank_offset:0{6}X}"
+        addr_reset, bank_reset, bank_offset_reset = convert_runtime_address_to_rom(get_operand(rom[ROM_RESET_ADDR:], 2))
+        self.labels_set.add((bank_reset * BANK_SIZE) + bank_offset_reset)
+        self.rom_reset_label_name = f"CODE_{((BANK_START + bank_reset) << 16) | bank_offset_reset:0{6}X}"
+
+        addr_nmi, bank_nmi, bank_offset_nmi = convert_runtime_address_to_rom(get_operand(rom[ROM_NMI_ADDR:], 2))
+        self.labels_set.add((bank_nmi * BANK_SIZE) + bank_offset_nmi)
+        self.rom_nmi_label_name = f"CODE_{((BANK_START + bank_nmi) << 16) | bank_offset_nmi:0{6}X}"
+
+        addr_irq, bank_irq, bank_offset_irq = convert_runtime_address_to_rom(get_operand(rom[ROM_IRQ_ADDR:], 2))
+        self.labels_set.add((bank_irq * BANK_SIZE) + bank_offset_irq)
+        self.rom_irq_label_name = f"CODE_{((BANK_START + bank_irq) << 16) | bank_offset_irq:0{6}X}"
 
     def mark_as_data(self, bank, bank_offset, data):
         self.banks[bank].payload[bank_offset] = Data(data)
@@ -769,6 +779,8 @@ class Disassembly:
             self.build_ast(ast)
             ast_dict = {"ast": ast}
             ast_dict["rom_reset_label_name"] = self.rom_reset_label_name
+            ast_dict["rom_nmi_label_name"] = self.rom_nmi_label_name
+            ast_dict["rom_irq_label_name"] = self.rom_irq_label_name
             json.dump(ast_dict, f)
 
 
