@@ -589,7 +589,7 @@ class Instruction:
         self.index_mode = current_index_mode
 
         self.jump_label_name = None
-        if opcode is 0x4C:
+        if opcode in [0x4C, 0x20]:
             self.jump_label_name = f"CODE_{(BANK_START + bank_index) << 16 | self.operand:0{6}X}"
             offset_of_jump_target = (bank_index * BANK_SIZE) + self.operand
             labels_set.add(offset_of_jump_target)
@@ -605,8 +605,16 @@ class Instruction:
             offset_of_jump_target = (bank_index * BANK_SIZE) + jump_offset
             labels_set.add(offset_of_jump_target)
         elif opcode in [0x6B, 0x60, 0x40]:
-            offset_of_return_address = (bank_index * BANK_SIZE) + ((bank_offset + 1) & 0xFFFF)
-            labels_set.add(offset_of_return_address)
+            offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 1) & 0xFFFF)
+            labels_set.add(offset_of_next_instruction)
+
+        if opcode in [0x20, 0xFC]:
+            offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 3) & 0xFFFF)
+            labels_set.add(offset_of_next_instruction)
+        elif opcode is 0x22:
+            offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 4) & 0xFFFF)
+            labels_set.add(offset_of_next_instruction)
+
 
 
     def render(self, output, bank_num, bank_offset):
