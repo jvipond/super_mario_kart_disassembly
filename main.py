@@ -608,7 +608,10 @@ class Instruction:
             offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 1) & 0xFFFF)
             labels_set.add(offset_of_next_instruction)
 
-        if opcode in [0x20, 0xFC]:
+        if opcode is 0x80:
+            offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 2) & 0xFFFF)
+            labels_set.add(offset_of_next_instruction)
+        elif opcode in [0x20, 0xFC]:
             offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 3) & 0xFFFF)
             labels_set.add(offset_of_next_instruction)
         elif opcode is 0x22:
