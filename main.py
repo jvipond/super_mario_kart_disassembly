@@ -611,7 +611,7 @@ class Instruction:
         if opcode is 0x80:
             offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 2) & 0xFFFF)
             labels_set.add(offset_of_next_instruction)
-        elif opcode in [0x20, 0xFC]:
+        elif opcode in [0x20, 0xFC, 0x4C]:
             offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 3) & 0xFFFF)
             labels_set.add(offset_of_next_instruction)
         elif opcode is 0x22:
@@ -685,6 +685,8 @@ class Disassembly:
         addr_reset, bank_reset, bank_offset_reset = convert_runtime_address_to_rom(get_operand(rom[ROM_RESET_ADDR:], 2))
         self.labels_set.add((bank_reset * BANK_SIZE) + bank_offset_reset)
         self.rom_reset_label_name = f"CODE_{((BANK_START + bank_reset) << 16) | bank_offset_reset:0{6}X}"
+
+        self.rom_reset_addr = addr_reset
 
         addr_nmi, bank_nmi, bank_offset_nmi = convert_runtime_address_to_rom(get_operand(rom[ROM_NMI_ADDR:], 2))
         self.labels_set.add((bank_nmi * BANK_SIZE) + bank_offset_nmi)
@@ -790,6 +792,7 @@ class Disassembly:
             self.build_ast(ast)
             ast_dict = {"ast": ast}
             ast_dict["rom_reset_label_name"] = self.rom_reset_label_name
+            ast_dict["rom_reset_addr"] = self.rom_reset_addr
             ast_dict["rom_nmi_label_name"] = self.rom_nmi_label_name
             ast_dict["rom_irq_label_name"] = self.rom_irq_label_name
             json.dump(ast_dict, f)
