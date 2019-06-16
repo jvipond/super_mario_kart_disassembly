@@ -587,6 +587,7 @@ class Instruction:
         self.operand = get_operand(rom_data_from_operand_addr, self.operand_size)
         self.memory_mode = current_memory_mode
         self.index_mode = current_index_mode
+        self.instruction_string = ""
 
         self.jump_label_name = None
         if opcode in [0x4C, 0x20]:
@@ -627,21 +628,23 @@ class Instruction:
         if self.operand is None:
             width = ASSEMBLY_OUTPUT_LINE_WIDTH - len(opcode_string)
             output.write(f"{opcode_string}{comment_string:>{width}}")
+            self.instruction_string = f"{opcodes[self.opcode]}"
         else:
             operand_string = address_mode_dispatch[self.addr_mode](self.operand, self.operand_size)
             if operand_string in hardware_registers:
                 operand_string = hardware_registers[operand_string]
             width = ASSEMBLY_OUTPUT_LINE_WIDTH - (len(opcode_string) + len(operand_string) + 1)
             output.write(f"{opcode_string} {operand_string}{comment_string:>{width}}")
+            self.instruction_string = f"{opcodes[self.opcode]} {operand_string}"
 
     def build_ast(self, ast, offset):
         if self.operand is not None:
             if self.jump_label_name is not None:
-                ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "jump_label_name": self.jump_label_name, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+                ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "operand": self.operand, "jump_label_name": self.jump_label_name, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
             else:
-                ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "operand": self.operand, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+                ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "operand": self.operand, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
         else:
-            ast.append({"Instruction": {"offset": offset, "opcode": self.opcode, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+            ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
 
 
 class InstructionOperand:
