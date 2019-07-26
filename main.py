@@ -814,7 +814,7 @@ if __name__ == "__main__":
     executed_instruction_info = open_executed_instruction_addresses("instruction_trace.txt")
     for instruction_info in executed_instruction_info:
         current_memory_mode = MemoryMode.EIGHT_BIT if instruction_info.memory_mode is 1 else MemoryMode.SIXTEEN_BIT
-        current_index_mode = MemoryMode.SIXTEEN_BIT if instruction_info.index_mode is 1 else MemoryMode.SIXTEEN_BIT
+        current_index_mode = MemoryMode.EIGHT_BIT if instruction_info.index_mode is 1 else MemoryMode.SIXTEEN_BIT
         rom_addr, bank, bank_offset = convert_runtime_address_to_rom(instruction_info.runtime_addr)
 
         opcode_value = rom[rom_addr]
