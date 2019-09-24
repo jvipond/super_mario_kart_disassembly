@@ -46,7 +46,7 @@ class MemoryMode(Enum):
 ASSEMBLY_OUTPUT_LINE_WIDTH = 60
 NUM_BANKS = 8
 BANK_SIZE = 0x10000
-BANK_START = 0x40
+BANK_START = 0x80
 ROM_RESET_ADDR = 0xFFFC
 ROM_NMI_ADDR = 0xFFEA
 ROM_IRQ_ADDR = 0xFFEE
@@ -666,6 +666,12 @@ class Bank:
 
     def render(self, output, labels_set):
         for (bank_offset, payload) in enumerate(self.payload):
+            if bank_offset == 0x0000:
+                code_addr = (0x40 + self.bank_index) << 16
+                output.write(f"\norg ${code_addr:0{6}X}\n")
+            elif bank_offset == 0x8000:
+                code_addr = ((BANK_START + self.bank_index) << 16) + bank_offset
+                output.write(f"\norg ${code_addr:0{6}X}\n")
             if payload is not None:
                 offset = (self.bank_index * BANK_SIZE) + bank_offset
                 if offset in labels_set:
@@ -776,11 +782,9 @@ class Disassembly:
     def render(self):
         for (bank_index, bank) in enumerate(self.banks):
             bank_output = io.StringIO()
-            code_addr = (BANK_START + bank_index) << 16
+
             if bank_index == 0:
-                bank_output.write(f"hirom\n\norg ${code_addr:0{6}X}\n\narch 65816\n\n")
-            else:
-                bank_output.write(f"org ${code_addr:0{6}X}\n\n")
+                bank_output.write(f"hirom\n\narch 65816\n\n")
             bank.render(bank_output, self.labels_set)
             with open(f"bank{bank_index:0{2}d}.asm", 'w') as f:
                 f.write(bank_output.getvalue())
