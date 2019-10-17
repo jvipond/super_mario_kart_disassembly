@@ -51,7 +51,7 @@ ROM_RESET_ADDR = 0xFFFC
 ROM_NMI_ADDR = 0xFFEA
 ROM_IRQ_ADDR = 0xFFEE
 
-InstructionInfo = collections.namedtuple('InstructionInfo', 'memory_mode index_mode runtime_addr')
+InstructionInfo = collections.namedtuple('InstructionInfo', 'memory_mode index_mode runtime_addr func_names')
 
 hardware_registers = {
     "$2100": "!SCREEN_DISPLAY_REGISTER",
@@ -227,13 +227,44 @@ def open_executed_instruction_addresses(file):
     data = []
     with open(file, 'r') as f:
         for line in f:
-            memory_mode_and_addr = line.split(" ")
-            assert len(memory_mode_and_addr) == 3
-            memory_mode = int(memory_mode_and_addr[0])
-            index_mode = int(memory_mode_and_addr[1])
-            runtime_addr = int(memory_mode_and_addr[2])
+            info = line.split(" ")
+            assert len(info) >= 3
+            memory_mode = int(info[0])
+            index_mode = int(info[1])
+            runtime_addr = int(info[2])
+            func_names = info[3:]
+            if len(func_names) > 0:
+                func_names[-1] = func_names[-1].strip()
 
-            data.append(InstructionInfo(memory_mode=memory_mode, index_mode=index_mode, runtime_addr=runtime_addr))
+            data.append(InstructionInfo(memory_mode=memory_mode, index_mode=index_mode, runtime_addr=runtime_addr, func_names=func_names))
+    return data
+
+def open_pc_to_fixed_func_name(file):
+    data = {}
+    with open(file, 'r') as f:
+        for line in f:
+            info = line.split(" ")
+            assert len(info) == 2
+            pc = int(info[0])
+            offset, _, _ = convert_runtime_address_to_rom(pc)
+            func_name = info[1].strip()
+
+            data[offset] = func_name
+    return data
+
+def open_jump_tables(file):
+    data = {}
+    with open(file, 'r') as f:
+        for line in f:
+            info = line.split(" ")
+            assert len(info) >= 3
+            pc = int(info[0])
+            offset, _, _ = convert_runtime_address_to_rom(pc)
+            jump_table_entries = {}
+            for i in range(1, len(info), 2):
+                jump_table_entries[int(info[i])] = info[i+1].strip()
+
+            data[offset] = jump_table_entries
     return data
 
 
@@ -272,11 +303,21 @@ def convert_runtime_address_to_rom(addr):
 
 def open_label_addresses(file):
     labels = set()
+    labels_to_functions = {}
     with open(file, 'r') as f:
         for line in f:
-            offset, _, _ = convert_runtime_address_to_rom(int(line))
+            label_info = line.split(" ")
+            assert len(label_info) >= 3
+            address = int(label_info[0])
+            offset, _, _ = convert_runtime_address_to_rom(int(address))
+            label_entries = {}
+            for i in range(1, len(label_info), 2):
+                label_entries[label_info[i]] = bool(int(label_info[i+1]))
+
             labels.add(offset)
-    return labels
+            labels_to_functions[offset] = label_entries
+    return labels, labels_to_functions
+
 
 def get_operand(rom_data, operand_size):
     if operand_size == 1:
@@ -579,7 +620,7 @@ class Data:
 
 
 class Instruction:
-    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_operand_addr, bank_index, bank_offset, labels_set):
+    def __init__(self, opcode, current_memory_mode, current_index_mode, rom_data_from_operand_addr, bank_index, bank_offset, labels_set, func_names):
         addr_mode = get_addr_mode_from_opcode_value(opcode)
         self.opcode = opcode
         self.operand_size = get_operand_size(addr_mode, current_memory_mode, current_index_mode)
@@ -588,6 +629,7 @@ class Instruction:
         self.memory_mode = current_memory_mode
         self.index_mode = current_index_mode
         self.instruction_string = ""
+        self.func_names = func_names
 
         self.jump_label_name = None
         if opcode in [0x4C, 0x20]:
@@ -640,11 +682,11 @@ class Instruction:
     def build_ast(self, ast, offset):
         if self.operand is not None:
             if self.jump_label_name is not None:
-                ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "operand": self.operand, "jump_label_name": self.jump_label_name, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+                ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "operand": self.operand, "jump_label_name": self.jump_label_name, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0, "func_names" : self.func_names}})
             else:
-                ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "operand": self.operand, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+                ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "operand": self.operand, "operand_size": self.operand_size, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0, "func_names" : self.func_names}})
         else:
-            ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0}})
+            ast.append({"Instruction": {"offset": offset, "instruction_string": self.instruction_string, "opcode": self.opcode, "memory_mode": 1 if self.memory_mode is MemoryMode.EIGHT_BIT else 0, "index_mode": 1 if self.index_mode is MemoryMode.EIGHT_BIT else 0,"func_names" : self.func_names}})
 
 
 class InstructionOperand:
@@ -693,23 +735,23 @@ class Disassembly:
         self.labels_set = labels_set
         addr_reset, bank_reset, bank_offset_reset = convert_runtime_address_to_rom(get_operand(rom[ROM_RESET_ADDR:], 2))
         self.labels_set.add((bank_reset * BANK_SIZE) + bank_offset_reset)
-        self.rom_reset_label_name = f"CODE_{((BANK_START + bank_reset) << 16) | bank_offset_reset:0{6}X}"
+        self.rom_reset_func_name = f"func_{((BANK_START + bank_reset) << 16) | bank_offset_reset:0{6}X}"
 
         self.rom_reset_addr = addr_reset
 
         addr_nmi, bank_nmi, bank_offset_nmi = convert_runtime_address_to_rom(get_operand(rom[ROM_NMI_ADDR:], 2))
         self.labels_set.add((bank_nmi * BANK_SIZE) + bank_offset_nmi)
-        self.rom_nmi_label_name = f"CODE_{((BANK_START + bank_nmi) << 16) | bank_offset_nmi:0{6}X}"
+        self.rom_nmi_func_name = f"func_{((BANK_START + bank_nmi) << 16) | bank_offset_nmi:0{6}X}"
 
         addr_irq, bank_irq, bank_offset_irq = convert_runtime_address_to_rom(get_operand(rom[ROM_IRQ_ADDR:], 2))
         self.labels_set.add((bank_irq * BANK_SIZE) + bank_offset_irq)
-        self.rom_irq_label_name = f"CODE_{((BANK_START + bank_irq) << 16) | bank_offset_irq:0{6}X}"
+        self.rom_irq_func_name = f"func_{((BANK_START + bank_irq) << 16) | bank_offset_irq:0{6}X}"
 
     def mark_as_data(self, bank, bank_offset, data):
         self.banks[bank].payload[bank_offset] = Data(data)
 
     def mark_as_instruction(self, bank, bank_offset, opcode, current_memory_mode, current_index_mode,
-                            rom_data_from_operand_addr):
+                            rom_data_from_operand_addr, func_names):
         # detect the case where the original assembly employed space saving technique utilising part of the previous
         # instruction operand as the opcode.
         # if the address we were going to write the instruction to is part of a previous InstructionOperand
@@ -729,7 +771,8 @@ class Disassembly:
                                                             rom_data_from_operand_addr=rom_data_from_operand_addr,
                                                             bank_index=bank,
                                                             bank_offset=bank_offset,
-                                                            labels_set=self.labels_set)
+                                                            labels_set=self.labels_set,
+                                                            func_names=func_names)
         for i in range(1, operand_size+1):
             self.banks[bank].payload[bank_offset + i] = InstructionOperand(rom_data_from_operand_addr[i])
 
@@ -742,6 +785,7 @@ class Disassembly:
                     instruction = self.banks[index].payload[offset]
                     current_memory_mode = instruction.memory_mode
                     current_index_mode = instruction.index_mode
+                    func_names = instruction.func_names
                     if opcodes[instruction.opcode] in ["BNE", "BPL", "BMI", "BVC", "BCS", "BEQ","BCC", "BVS"]:
                         size = instruction.operand_size + 1
                         next_instruction_offset = offset + size
@@ -752,7 +796,8 @@ class Disassembly:
                                                                                 opcode=rom[rom_addr],
                                                                                 current_memory_mode=current_memory_mode,
                                                                                 current_index_mode=current_index_mode,
-                                                                                rom_data_from_operand_addr=rom[rom_addr + 1:])
+                                                                                rom_data_from_operand_addr=rom[rom_addr + 1:],
+                                                                                func_names=func_names)
 
                             if disassembled_instruction:
                                 # check to see if we did a REP or SEP which could have changed the memory or index mode.
@@ -793,25 +838,44 @@ class Disassembly:
         for bank in self.banks:
             bank.build_ast(ast, self.labels_set)
 
-    def write_ast(self, output_filename):
+    def write_ast(self, output_filename, offset_to_function_name, jump_tables, function_names, labels_to_functions):
         with open(output_filename, 'w') as f:
             ast = []
             self.build_ast(ast)
             ast_dict = {"ast": ast}
-            ast_dict["rom_reset_label_name"] = self.rom_reset_label_name
+            ast_dict["rom_reset_func_name"] = self.rom_reset_func_name
             ast_dict["rom_reset_addr"] = self.rom_reset_addr
-            ast_dict["rom_nmi_label_name"] = self.rom_nmi_label_name
-            ast_dict["rom_irq_label_name"] = self.rom_irq_label_name
+            ast_dict["rom_nmi_func_name"] = self.rom_nmi_func_name
+            ast_dict["rom_irq_func_name"] = self.rom_irq_func_name
+            ast_dict["offset_to_function_name"] = list(offset_to_function_name.items())
+            jump_tables_as_list = {}
+            for k, v in jump_tables.items():
+                jump_tables_as_list[k] = list(v.items())
+            ast_dict["jump_tables"] = list(jump_tables_as_list.items())
+            ast_dict["function_names"] = list(function_names)
+            ast_dict["labels_to_functions"] = list(labels_to_functions.items())
             json.dump(ast_dict, f)
 
 
 if __name__ == "__main__":
-    labels_set = open_label_addresses("labels.txt")
+    labels_set, labels_to_functions = open_label_addresses("labels.txt")
     rom = open_rom("Super Mario Kart (USA).sfc")
     disassembly = Disassembly(labels_set, rom)
     for (addr, d) in enumerate(rom):
         bank, bank_offset = get_bank_and_offset(addr)
         disassembly.mark_as_data(bank=bank, bank_offset=bank_offset, data=d)
+
+    offset_to_function_name = open_pc_to_fixed_func_name("pcToFixedFuncName.txt")
+    jump_tables = open_jump_tables("jumpTablePCToFuncName.txt")
+
+    function_names = set()
+    for k, v in offset_to_function_name.items():
+        function_names.add(v)
+
+    for k, v in jump_tables.items():
+        for case, function_name in v.items():
+            if "CODE_" not in function_name:
+                function_names.add(function_name)
 
     current_memory_mode = MemoryMode.EIGHT_BIT
     current_index_mode = MemoryMode.EIGHT_BIT
@@ -820,13 +884,15 @@ if __name__ == "__main__":
         current_memory_mode = MemoryMode.EIGHT_BIT if instruction_info.memory_mode is 1 else MemoryMode.SIXTEEN_BIT
         current_index_mode = MemoryMode.EIGHT_BIT if instruction_info.index_mode is 1 else MemoryMode.SIXTEEN_BIT
         rom_addr, bank, bank_offset = convert_runtime_address_to_rom(instruction_info.runtime_addr)
+        func_names = instruction_info.func_names
+        function_names.union(func_names)
 
         opcode_value = rom[rom_addr]
         disassembly.mark_as_instruction(bank=bank, bank_offset=bank_offset, opcode=opcode_value,
                                         current_memory_mode=current_memory_mode, current_index_mode=current_index_mode,
-                                        rom_data_from_operand_addr=rom[rom_addr+1:])
+                                        rom_data_from_operand_addr=rom[rom_addr+1:], func_names=func_names)
 
-    disassembly.disassemble_branches_not_taken(rom)
+    #disassembly.disassemble_branches_not_taken(rom)
     disassembly.render()
 
-    disassembly.write_ast("super_mario_kart_ast.json")
+    disassembly.write_ast("super_mario_kart_ast.json", offset_to_function_name, jump_tables, function_names, labels_to_functions)
