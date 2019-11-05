@@ -616,7 +616,6 @@ class Data:
 
     def build_ast(self, ast, offset):
         pass
-        #ast.append({"Data": {"offset": offset, "value": self.value}})
 
 
 class Instruction:
@@ -647,18 +646,12 @@ class Instruction:
             self.jump_label_name = f"CODE_{(BANK_START + bank_index) << 16 | jump_offset:0{6}X}"
             offset_of_jump_target = (bank_index * BANK_SIZE) + jump_offset
             labels_set.add(offset_of_jump_target)
-        elif opcode in [0x6B, 0x60, 0x40]:
-            offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 1) & 0xFFFF)
-            labels_set.add(offset_of_next_instruction)
 
         if opcode is 0x80:
             offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 2) & 0xFFFF)
             labels_set.add(offset_of_next_instruction)
-        elif opcode in [0x20, 0xFC, 0x4C, 0x6C, 0x7C, 0xDC]:
+        elif opcode in [0x4C, 0x6C, 0x7C, 0xDC]:
             offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 3) & 0xFFFF)
-            labels_set.add(offset_of_next_instruction)
-        elif opcode is 0x22:
-            offset_of_next_instruction = (bank_index * BANK_SIZE) + ((bank_offset + 4) & 0xFFFF)
             labels_set.add(offset_of_next_instruction)
 
 
@@ -735,17 +728,17 @@ class Disassembly:
         self.labels_set = labels_set
         addr_reset, bank_reset, bank_offset_reset = convert_runtime_address_to_rom(get_operand(rom[ROM_RESET_ADDR:], 2))
         self.labels_set.add((bank_reset * BANK_SIZE) + bank_offset_reset)
-        self.rom_reset_func_name = f"func_{((BANK_START + bank_reset) << 16) | bank_offset_reset:0{6}X}"
+        self.rom_reset_func_name = f"FUNC_{((BANK_START + bank_reset) << 16) | bank_offset_reset:0{6}X}"
 
         self.rom_reset_addr = addr_reset
 
         addr_nmi, bank_nmi, bank_offset_nmi = convert_runtime_address_to_rom(get_operand(rom[ROM_NMI_ADDR:], 2))
         self.labels_set.add((bank_nmi * BANK_SIZE) + bank_offset_nmi)
-        self.rom_nmi_func_name = f"func_{((BANK_START + bank_nmi) << 16) | bank_offset_nmi:0{6}X}"
+        self.rom_nmi_func_name = f"FUNC_{((BANK_START + bank_nmi) << 16) | bank_offset_nmi:0{6}X}"
 
         addr_irq, bank_irq, bank_offset_irq = convert_runtime_address_to_rom(get_operand(rom[ROM_IRQ_ADDR:], 2))
         self.labels_set.add((bank_irq * BANK_SIZE) + bank_offset_irq)
-        self.rom_irq_func_name = f"func_{((BANK_START + bank_irq) << 16) | bank_offset_irq:0{6}X}"
+        self.rom_irq_func_name = f"FUNC_{((BANK_START + bank_irq) << 16) | bank_offset_irq:0{6}X}"
 
     def mark_as_data(self, bank, bank_offset, data):
         self.banks[bank].payload[bank_offset] = Data(data)
@@ -881,16 +874,21 @@ if __name__ == "__main__":
     current_index_mode = MemoryMode.EIGHT_BIT
     executed_instruction_info = open_executed_instruction_addresses("instruction_trace.txt")
     for instruction_info in executed_instruction_info:
+        for func_name in instruction_info.func_names:
+            function_names.add(func_name)
         current_memory_mode = MemoryMode.EIGHT_BIT if instruction_info.memory_mode is 1 else MemoryMode.SIXTEEN_BIT
         current_index_mode = MemoryMode.EIGHT_BIT if instruction_info.index_mode is 1 else MemoryMode.SIXTEEN_BIT
         rom_addr, bank, bank_offset = convert_runtime_address_to_rom(instruction_info.runtime_addr)
-        func_names = instruction_info.func_names
-        function_names.union(func_names)
+
+        if rom_addr in labels_to_functions:
+            for func_name in instruction_info.func_names:
+                if func_name not in labels_to_functions[rom_addr]:
+                    labels_to_functions[rom_addr][func_name] = False
 
         opcode_value = rom[rom_addr]
         disassembly.mark_as_instruction(bank=bank, bank_offset=bank_offset, opcode=opcode_value,
                                         current_memory_mode=current_memory_mode, current_index_mode=current_index_mode,
-                                        rom_data_from_operand_addr=rom[rom_addr+1:], func_names=func_names)
+                                        rom_data_from_operand_addr=rom[rom_addr+1:], func_names=instruction_info.func_names)
 
     #disassembly.disassemble_branches_not_taken(rom)
     disassembly.render()
