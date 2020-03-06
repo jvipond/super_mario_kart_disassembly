@@ -792,54 +792,6 @@ class Disassembly:
 
         return True
 
-    def disassemble_branches_not_taken(self, rom):
-        for index in range(len(self.banks)):
-            for offset in range(len(self.banks[index].payload)):
-                if isinstance(self.banks[index].payload[offset], Instruction):
-                    instruction = self.banks[index].payload[offset]
-                    current_memory_mode = instruction.memory_mode
-                    current_index_mode = instruction.index_mode
-                    func_names = instruction.func_names
-                    if opcodes[instruction.opcode] in ["BNE", "BPL", "BMI", "BVC", "BCS", "BEQ","BCC", "BVS"]:
-                        size = instruction.operand_size + 1
-                        new_pc = instruction.pc + size
-                        next_instruction_offset = offset + size
-                        while isinstance(self.banks[index].payload[next_instruction_offset], Data):
-                            rom_addr = (index * BANK_SIZE) + next_instruction_offset
-                            disassembled_instruction = self.mark_as_instruction(bank=index,
-                                                                                bank_offset=next_instruction_offset,
-                                                                                opcode=rom[rom_addr],
-                                                                                current_memory_mode=current_memory_mode,
-                                                                                current_index_mode=current_index_mode,
-                                                                                rom_data_from_operand_addr=rom[rom_addr + 1:],
-                                                                                func_names=func_names,
-                                                                                pc=new_pc)
-
-                            if disassembled_instruction:
-                                # check to see if we did a REP or SEP which could have changed the memory or index mode.
-                                instruction = self.banks[index].payload[next_instruction_offset]
-                                mnemonic = opcodes[instruction.opcode]
-                                if mnemonic is "REP":
-                                    instruction_operand = self.banks[index].payload[next_instruction_offset + 1]
-                                    assert isinstance(instruction_operand, InstructionOperand)
-                                    current_memory_mode = MemoryMode.SIXTEEN_BIT if (instruction_operand.value & 0b00100000) else current_memory_mode
-                                    current_index_mode = MemoryMode.SIXTEEN_BIT if (instruction_operand.value & 0b00010000) else current_index_mode
-                                    instruction.memory_mode = current_memory_mode
-                                    instruction.index_mode = current_index_mode
-                                elif mnemonic is "SEP":
-                                    instruction_operand = self.banks[index].payload[next_instruction_offset + 1]
-                                    assert isinstance(instruction_operand, InstructionOperand)
-                                    current_memory_mode = MemoryMode.EIGHT_BIT if (instruction_operand.value & 0b00100000) else current_memory_mode
-                                    current_index_mode = MemoryMode.EIGHT_BIT if (instruction_operand.value & 0b00010000) else current_index_mode
-                                    instruction.memory_mode = current_memory_mode
-                                    instruction.index_mode = current_index_mode
-
-                                assert isinstance(self.banks[index].payload[next_instruction_offset], Instruction)
-                                assert opcodes[self.banks[index].payload[next_instruction_offset].opcode] is not "XCE"
-                                next_instruction_offset += self.banks[index].payload[next_instruction_offset].operand_size + 1
-                            else:
-                                break
-
     def render(self):
         for (bank_index, bank) in enumerate(self.banks):
             bank_output = io.StringIO()
@@ -916,7 +868,6 @@ if __name__ == "__main__":
                                         current_memory_mode=current_memory_mode, current_index_mode=current_index_mode,
                                         rom_data_from_operand_addr=rom[rom_addr+1:], func_names=instruction_info.func_names, pc=instruction_info.runtime_addr)
 
-    #disassembly.disassemble_branches_not_taken(rom)
     disassembly.render()
 
     disassembly.write_ast("super_mario_kart_ast.json", offset_to_function_name, jump_tables, function_names, labels_to_functions, return_address_manipulation_functions)
